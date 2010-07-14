@@ -24,6 +24,8 @@ Danga::Socket::Redis - An asynchronous redis client.
      $rs->subscribe ( "newsfeed", sub { my ( $chan, $msg ) = @_ } );
   }
 
+  Danga::Socket->EventLoop;
+
 
 =head1 DESCRIPTION
 
@@ -43,6 +45,7 @@ Only started, a lot of redis functions need to be added.
 =head1 SUPPORT
 
 dm @martinredmond
+martin @ tinychat.com
 
 =head1 AUTHOR
 
@@ -71,7 +74,7 @@ perl(1).
 BEGIN {
     use Exporter ();
     use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-    $VERSION     = '0.01';
+    $VERSION     = '0.02';
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
     @EXPORT_OK   = qw(set get 
@@ -83,9 +86,15 @@ BEGIN {
 our $AUTOLOAD;
 
 our %cmds = (
+	     'ping', [],
+	     'exists', [ 'arg', 'callback' ],
 	     'set', [ 'arg', 'arg', 'callback' ],
 	     'get', [ 'arg', 'callback' ],
+	     'del', [ 'arg', 'callback' ],
 
+	     'type', [ 'arg', 'callback' ],
+	     'keys', [ 'arg', 'callback' ],
+	     
 	     'hset', [ 'arg', 'arg', 'arg', 'callback' ],
 	     'hget', [ 'arg', 'arg', 'callback' ],
 
@@ -114,7 +123,7 @@ sub new {
      context => { buf => \$a, rs => $self },
      on_read_ready => sub {
        my $self = shift;
-       my $bref = $self->read ( 20 );
+       my $bref = $self->read ( 1024 * 8 );
        my $buf = $self->{context}->{buf};
        if ( $bref ) {
 	 $buf = length ( $$buf ) > 0 ? 
@@ -209,7 +218,6 @@ sub redis_process {
       return;
     }
     my $cmd = shift @{$self->{cmdqueue}};
-
     if ( my $cb = $cmd->{callback} ) {
 	if ( $o->{type} eq 'bulkerror' ) {
 	    &$cb ( undef );
@@ -243,6 +251,7 @@ sub AUTOLOAD {
 
 sub redis_send {
   my ( $self, $cmd ) = @_;
+  $cmd->{args} = [] if $cmd->{type} eq 'ping';
   unless ( $cmd->{type} eq 'subscribe' ) {
     push @{$self->{cmdqueue}}, $cmd;
   }

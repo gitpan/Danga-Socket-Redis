@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                Danga-Socket-Redis
-version:             0.01
+version:             0.02
 abstract:            An asynchronous redis client.
 license:             ~
 author:              
