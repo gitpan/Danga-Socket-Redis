@@ -9,21 +9,20 @@ Danga::Socket::Redis - An asynchronous redis client.
 
 =head1 SYNOPSIS
 
-use Danga::Socket::Redis;
+    use Danga::Socket::Redis;
 
-my $rs = Danga::Socket::Redis->new ( connected => \&redis_connected );
-
-sub redis_connected {
-    $rs->set ( "key", "value" );
-    $rs->get ( "key", sub { my ( $self, $value ) = @_; print "$key = $value\n" } );
-    $rs->publish ( "newsfeed", "Twitter is down" );
-    $rs->hset ( "hkey", "field", "value" );
-    $rs->hget ( "hkey", "field", sub { my ( $self, $value ) = @_ } );
-    $rs->subscribe ( "newsfeed", sub { my ( $self, $msg ) = @_ } );
-}
+    my $rs = Danga::Socket::Redis->new ( connected => \&redis_connected );
+ 
+    sub redis_connected {
+        $rs->set ( "key", "value" );
+        $rs->get ( "key", sub { my ( $self, $value ) = @_; print "$key = $value\n" } );
+        $rs->publish ( "newsfeed", "Twitter is down" );
+        $rs->hset ( "hkey", "field", "value" );
+        $rs->hget ( "hkey", "field", sub { my ( $self, $value ) = @_ } );
+        $rs->subscribe ( "newsfeed", sub { my ( $self, $msg ) = @_ } );
+    }
     
 Danga::Socket->EventLoop;
-
 
 
 =head1 DESCRIPTION
@@ -73,7 +72,7 @@ perl(1).
 BEGIN {
     use Exporter ();
     use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-    $VERSION     = '0.04';
+    $VERSION     = '0.05';
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
     @EXPORT_OK   = qw(set get 
@@ -321,10 +320,12 @@ sub AUTOLOAD {
   my $self = shift;
   my $cc = $AUTOLOAD;
   $cc =~ s/.*:://;
-  $cc =~ tr/A-Z/a-z/;
+  $cc = lc $cc;
+
+  my $opts = $Danga::Socket::Redis::cmds{$cc};
+  return undef unless $opts;
 
   my $cmd = { type => $cc };
-  my $opts = $Danga::Socket::Redis::cmds{$cc};
   if ( $opts->{args} > 0 ) {
     push @{$cmd->{args}}, shift for 1 .. $opts->{args};
     $cmd->{callback} = shift;
@@ -351,7 +352,7 @@ sub AUTOLOAD {
 
 sub redis_send {
   my ( $self, $cmd ) = @_;
-  $cmd->{args} = [] if $cmd->{type} eq 'ping';
+  $cmd->{args} = [] unless ref $cmd->{args} eq 'ARRAY';
   unless ( $cmd->{type} eq 'subscribe' ) {
     push @{$self->{cmdqueue}}, $cmd;
   }
