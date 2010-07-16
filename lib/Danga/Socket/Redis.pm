@@ -2,7 +2,6 @@ package Danga::Socket::Redis;
 use strict;
 use IO::Socket;
 use Danga::Socket::Callback;
-use Data::Dumper;
 
 =head1 NAME
 
@@ -10,21 +9,21 @@ Danga::Socket::Redis - An asynchronous redis client.
 
 =head1 SYNOPSIS
 
-  use Danga::Socket::Redis;
+use Danga::Socket::Redis;
 
-  my $rs = Danga::Socket::Redis->new ( host => 'host',
-                                       connected => \&redis_connected );
+my $rs = Danga::Socket::Redis->new ( connected => \&redis_connected );
 
-  sub redis_connected {
-     $rs->set ( "key", "value" ):
-     $rs->get ( "key", sub { my ( $value ) = @_; print "$key = $value\n" } );
-     $rs->publish ( "newsfeed", "Twitter is down" );
-     $rs->hset ( "key", "field", "value" );
-     $rs->hget ( "key", "field", sub { my ( $value ) = @_ };
-     $rs->subscribe ( "newsfeed", sub { my ( $chan, $msg ) = @_ } );
-  }
+sub redis_connected {
+    $rs->set ( "key", "value" );
+    $rs->get ( "key", sub { my ( $self, $value ) = @_; print "$key = $value\n" } );
+    $rs->publish ( "newsfeed", "Twitter is down" );
+    $rs->hset ( "hkey", "field", "value" );
+    $rs->hget ( "hkey", "field", sub { my ( $self, $value ) = @_ } );
+    $rs->subscribe ( "newsfeed", sub { my ( $self, $msg ) = @_ } );
+}
+    
+Danga::Socket->EventLoop;
 
-  Danga::Socket->EventLoop;
 
 
 =head1 DESCRIPTION
@@ -74,7 +73,7 @@ perl(1).
 BEGIN {
     use Exporter ();
     use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-    $VERSION     = '0.02';
+    $VERSION     = '0.04';
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
     @EXPORT_OK   = qw(set get 
@@ -86,20 +85,109 @@ BEGIN {
 our $AUTOLOAD;
 
 our %cmds = (
-	     'ping', [],
-	     'exists', [ 'arg', 'callback' ],
-	     'set', [ 'arg', 'arg', 'callback' ],
-	     'get', [ 'arg', 'callback' ],
-	     'del', [ 'arg', 'callback' ],
+	     exists => { args => 1 },
+	     del => { args => 1 },
+	     type => { args => 1 },
+	     keys => { args => 1 },
+	     randomkey => { args => 0 },
+	     rename => { args => 2 },
+	     renamenx => { args => 2 },
+	     dbsize => { args => 0 },
+	     expire => { args => 2 },
+	     ttl => { args => 2 },
+	     select => { args => 1 },
+	     move => { args => 2 },
+	     flushdb => { args => 0 },
+	     flushall => { args => 0 },
 
-	     'type', [ 'arg', 'callback' ],
-	     'keys', [ 'arg', 'callback' ],
+	     set => { args => 2 }, 
+	     get => { args => 1 }, 
+	     getset => { args => 2 }, 
+	     mget => { margs => 1 }, 
+	     setnx => { args => 2 }, 
+	     setex => { args => 3 }, 
+	     mset => { margs => 1 }, 
+	     msetnx => { margs => 1 }, 
+	     incr => { args => 1 }, 
+	     incrby => { args => 1 }, 
+	     decr => { args => 1 }, 
+	     decrby => { args => 1 }, 
+	     append => { args => 2 }, 
+	     substr => { args => 3 }, 
+
+	     rpush => { args => 2 }, 
+	     lpush => { args => 2 }, 
+	     llen => { args => 1 }, 
+	     lrange => { args => 2 }, 
+	     ltrim => { args => 3 }, 
+	     lindex => { args => 2 }, 
+	     lset => { args => 3 }, 
+	     lrem => { args => 3 }, 
+	     lpop => { args => 1 }, 
+	     rpop => { args => 1 }, 
+	     blpop => { margs => 1 }, 
+	     brpop => { margs => 1 }, 
+	     rpoplpush => { args => 2 }, 
+
+	     sadd => { args => 2 }, 
+	     srem => { args => 2 }, 
+	     spop => { args => 1 }, 
+	     smove => { args => 3 }, 
+	     scard => { args => 1 }, 
+	     sismember => { args => 2 }, 
+	     sinter => { margs => 1 }, 
+	     sinterstore => { margs => 1 }, 
+	     sunion => { margs => 1 }, 
+	     sunionstore => { margs => 1 }, 
+	     sdiff => { margs => 1 },
+
+	     smembers => { args => 1 }, 
+	     srandmember => { args => 1 }, 
+	     sdiffstore => { margs => 1 }, 
 	     
-	     'hset', [ 'arg', 'arg', 'arg', 'callback' ],
-	     'hget', [ 'arg', 'arg', 'callback' ],
+	     zadd => { args => 3 }, 
+	     zrem => { args => 2 }, 
+	     zincrby => { args => 3 }, 
+	     zrank => { args => 2 }, 
+	     zrevrank => { args => 2 }, 
+	     zrange => { args => 3 }, 
+	     zrevrange => { args => 3 }, 
+	     zrangebyscore => { args => 3 }, 
+	     zcount => { args => 4 }, 
+	     zcard => { args => 1 }, 
+	     zscore => { args => 0 }, 
+	     zremrangebyrank => { args => 0 }, 
+	     zremrangebyscore => { args => 0 }, 
+	     zunionstore => { args => 0 }, 
 
-	     'publish', ['arg', 'arg', 'callback'],
-	     'subscribe', [ 'arg', 'callback'],
+	     hset => { args => 3 }, 
+	     hget => { args => 2 }, 
+	     hmget => { margs => 1 }, 
+	     hmset => { margs => 1 }, 
+	     hincrby => { args => 0 }, 
+	     hexists => { args => 2 }, 
+	     hdel => { args => 2 }, 
+	     hlen => { args => 1 }, 
+	     hkeys => { args => 1 }, 
+	     hvals => { args => 1 }, 
+	     hgetall => { args => 1 }, 
+
+	     subscribe => { args => 1 },
+	     unsubscribe => { args => 1 },
+	     publish => { args => 2 },
+
+	     # * MULTI/EXEC/DISCARD/WATCH/UNWATCH  Redis atomic transactions 
+	     sort => { args => 0 }, 
+	     save => { args => 0 }, 
+	     bgsave => { args => 0 }, 
+	     lastsave => { args => 0 }, 
+	     shutdown => { args => 0 }, 
+	     bgrewriteaof => { args => 0 }, 
+
+	     info => { args => 0 }, 
+	     monitor => { args => 0 }, 
+	     slaveof => { args => 0 }, 
+	     config => { args => 0 }, 
 	    );
 
 1;
@@ -213,16 +301,16 @@ sub redis_process {
     my $v = $o->{values};
     if ( $v && $v->[0]->{value} eq 'message' ) {
       if ( my $cb = $self->{subscribe}->{callback}->{$v->[1]->{value}} ) {
-	&$cb ( $v->[1]->{value}, $v->[2]->{value} );
+	&$cb ( $self, $v->[2]->{value}, $o );
       }
       return;
     }
     my $cmd = shift @{$self->{cmdqueue}};
     if ( my $cb = $cmd->{callback} ) {
 	if ( $o->{type} eq 'bulkerror' ) {
-	    &$cb ( undef );
+	    &$cb ( $self, $o );
 	} else {
-	    &$cb ( $o->{value} );
+	    &$cb ( $self, $o->{value}, $o );
 	}
     }
 }
@@ -233,20 +321,32 @@ sub AUTOLOAD {
   my $self = shift;
   my $cc = $AUTOLOAD;
   $cc =~ s/.*:://;
-  if ( my $args = $Danga::Socket::Redis::cmds{$cc} ) {
-    my $cmd = { type => $cc };
-    foreach ( @{$Danga::Socket::Redis::cmds{$cc}} ) {
-      if ( $_ eq 'arg' ) {
-	push @{$cmd->{args}}, shift;
-      } else {
-	$cmd->{$_} = shift;
-      }
+  $cc =~ tr/A-Z/a-z/;
+
+  my $cmd = { type => $cc };
+  my $opts = $Danga::Socket::Redis::cmds{$cc};
+  if ( $opts->{args} > 0 ) {
+    push @{$cmd->{args}}, shift for 1 .. $opts->{args};
+    $cmd->{callback} = shift;
+    $cmd->{options} = shift;
+  } elsif ( $opts->{margs} == 1 ) {
+    my $last = pop @_;
+    if ( ref $last eq 'HASH' ) {
+      $cmd->{options} = shift;
+      $last = pop @_;
     }
-    if ( $cc eq 'subscribe' && $cmd->{callback} && $cmd->{args} ) {
-      $self->{subscribe}->{callback}->{$cmd->{args}->[0]} = $cmd->{callback};
+    if ( ref $last eq 'CODE' ) {
+      $cmd->{callback} = shift;
+    } else {
+      push @_, $last;
     }
-    $self->redis_send ( $cmd );
+    @{$cmd->{args}} = @_;
   }
+  if ( $cc eq 'subscribe' && $cmd->{callback} && $cmd->{args} &&
+       scalar @{$cmd->{args}} == 1 ) {
+    $self->{subscribe}->{callback}->{$cmd->{args}->[0]} = $cmd->{callback};
+  }
+  $self->redis_send ( $cmd );
 }
 
 sub redis_send {
