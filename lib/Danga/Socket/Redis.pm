@@ -72,7 +72,7 @@ perl(1).
 BEGIN {
     use Exporter ();
     use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-    $VERSION     = '0.05';
+    $VERSION     = '0.06';
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
     @EXPORT_OK   = qw(set get 
@@ -309,7 +309,12 @@ sub redis_process {
 	if ( $o->{type} eq 'bulkerror' ) {
 	    &$cb ( $self, $o );
 	} else {
-	    &$cb ( $self, $o->{value}, $o );
+	    if ( $o->{type} eq 'bulkmulti' ) {
+		my  @vs = map { $_->{value} } @{$o->{values}};
+		&$cb ( $self, \@vs, $o );
+	    } else {
+		&$cb ( $self, $o->{value}, $o );
+	    }
 	}
     }
 }
@@ -333,11 +338,11 @@ sub AUTOLOAD {
   } elsif ( $opts->{margs} == 1 ) {
     my $last = pop @_;
     if ( ref $last eq 'HASH' ) {
-      $cmd->{options} = shift;
+      $cmd->{options} = $last;
       $last = pop @_;
     }
     if ( ref $last eq 'CODE' ) {
-      $cmd->{callback} = shift;
+      $cmd->{callback} = $last;
     } else {
       push @_, $last;
     }
